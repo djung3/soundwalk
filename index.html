@@ -1,0 +1,394 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+
+    <meta charset="utf-8">
+    <meta http-equiv="X-UA-Compatible" content="IE=edge">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="">
+    <meta name="author" content="">
+    <meta name="msapplication-tap-highlight" content="no" />
+    <link href="css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" type="text/css" href="css/index.css" />
+    <link href="font-awesome/css/font-awesome.min.css" rel="stylesheet" type="text/css">
+    <link href="http://fonts.googleapis.com/css?family=Source+Sans+Pro:300,400,700,300italic,400italic,700italic" rel="stylesheet" type="text/css">
+    <meta name="format-detection" content="telephone=no" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jquery/1.11.2/jquery.min.js"></script>
+    <link rel="stylesheet" href="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/themes/smoothness/jquery-ui.css" />
+    <script src="https://ajax.googleapis.com/ajax/libs/jqueryui/1.11.3/jquery-ui.min.js"></script>
+    <script type="text/javascript" src="http://www.parsecdn.com/js/parse-1.3.5.min.js"></script>
+    <script type="text/javascript" src="cordova-2.0.0.js"></script>
+    <script type="text/javascript">
+
+    Parse.initialize("0lZs7XYdpHD0zksHaeXeuVGQ6YJ7n6Fe9ZgzDNEW", "y0Azb0PxESe6onk2K2YLfPNbDZJWLlSR831EdYbS");
+
+        var maxTime = 10,
+           countdownInt = 3,
+           src,
+           audioRecording,
+           stopRecording;
+
+       var audioMedia = null,
+           audioTimer = null,
+           duration = -1,
+           is_paused = false;
+
+
+
+       document.addEventListener("deviceready", onDeviceReady, false);
+
+
+       function onDeviceReady() {
+           recordPrepare();
+
+
+        }
+
+        function recordPrepare() {
+                   $('#record').unbind();
+                   $('#record').html('Start');
+                   $('#record').bind('touchstart', function() {
+                       recordAudio();
+                   });
+
+        }
+
+        function recordAudio() {
+               $('#record').unbind();
+               $('#record').html('Stop');
+
+               $('#record').bind('touchstart', function() {
+                   stopRecording();
+               });
+
+               src = 'recording_' + Math.round(new Date().getTime()/1000) + '.mp3';
+               audioRecording = new Media(src, onSuccess, onError);
+
+
+
+               var startCountdown = setInterval(function() {
+                   $('#message').html('Recording will start in ' + countdownInt + ' seconds...');
+                   countdownInt = countdownInt -1;
+                   if(countdownInt <= 0) {
+                       countdownInt = 3;
+                       clearInterval(startCountdown);
+                       audioRecording.startRecord();
+                       var recTime = 0;
+                       recInterval = setInterval(function() {
+                             recTime = recTime + 1;
+                             $('#message').html(Math.round(maxTime - recTime) + ' seconds remaining...');
+                          var progPerc = 100-((100/maxTime) * recTime);
+                         setProgress(progPerc);
+
+                         if (recTime >= maxTime) {
+                             stopRecording();
+                         }
+
+                       }, 1000);
+                   }
+               }, 1000);
+        }
+
+        function setProgress(progress) {
+             $("#progressbar").progressbar({
+                     value: progress
+              });
+        }
+
+        function stopRecording() {
+           clearInterval(recInterval);
+           audioRecording.stopRecord();
+           setProgress(0);
+           recordPrepare();
+        }
+
+
+
+
+        function onSuccess() {
+          $('#message').html('trying to save to parse');
+
+          var AudioRecording = Parse.Object.extend("AudioRecording");
+
+          var base64 = "V29ya2luZyBhdCBQYXJzZSBpcyBncmVhdCE=";
+
+          var path = "/storage/emulated/0/Music/record";
+
+          var newRecording = path + src;
+
+          $('#message').prepend(newRecording);
+
+          var file = new Parse.File( src, { base64: base64 } );
+
+          file.save().then(function() {
+            $('#message').append(' file saved ');// The file has been saved to Parse.
+          }, function(error) {
+            $('#message').append(' file NOT saved ');// The file either could not be read, or could not be saved to Parse.
+          });
+
+          var audioFile = new AudioRecording();
+              audioFile.save({
+                AudioFile: file,
+                name: "my new recording 2"
+               }, {
+              success: function(object) {
+                $('#message').html('Audio file successfully created:<br />' + src);
+              },
+              error: function(model, error) {
+                $('#message').html('it didnt work :(');
+              }
+            });
+        }
+
+        function onError(error) {
+            $('#message').html('code: ' + error.code + '\n' + 'message: ' + error.message + '\n');
+        }
+
+//           function playAudio(src) {
+//                   if (audioMedia === null) {
+//                       $("#mediaDuration").html("0");
+//                       $("#audioPosition").html("Loading...");
+//                       var srcLocall = '/4.mp3';
+//                       audioMedia = new Media(srcLocall, onSuccess, onError);
+//                       audioMedia.play();
+//                   } else {
+//                       if (is_paused) {
+//                           is_paused = false;
+//                           audioMedia.play();
+//                       }
+//                   }
+//                   if (audioTimer === null) {
+//                       audioTimer = setInterval(function() {
+//                           audioMedia.getCurrentPosition(function(position) {
+//                             if (position > -1) {
+//                               setAudioPosition(Math.round(position));
+//                               if (duration <= 0) {
+//                                 duration = audioMedia.getDuration();
+//                                 if (duration > 0) {
+//                                   duration = Math.round(duration);
+//                                   $("#mediaDuration").html(duration);
+//                                 }
+//                               }
+//                             }
+//                           },
+//                           function(error) {
+//                              console.log("Error getting position=" + error);
+//                              setAudioPosition("Error: " + error);
+//                           }
+//                         );
+//                         }, 1000);
+//                       }
+//                       }
+//
+//
+//                 function pauseAudio() {
+//         if (is_paused) return;
+//         if (audioMedia) {
+//             is_paused = true;
+//             audioMedia.pause();
+//         }
+// }
+//     function stopAudio() {
+//         if (audioMedia) {
+//             audioMedia.stop();
+//             audioMedia.release();
+//             audioMedia = null;
+//         }
+//         if (audioTimer) {
+//             clearInterval(audioTimer);
+//             audioTimer = null;
+//         }
+//         is_paused = false;
+//         duration = 0;
+//     }
+
+
+
+    </script>
+</head>
+
+<body>
+
+<!-- Navigation top-->
+    <nav class="navbar navbar-custom navbar-fixed-top" role="navigation">
+        <div class="container">
+            <div class="navbar-header">
+                <a class="navbar-brand page-scroll" href="#page-top">
+                    <i class="fa fa-play-circle"></i>
+                    <!-- <span class="light">Sound</span> Walk -->
+                    <div id="progressbar"></div>
+                   <div id="message"></div>
+                </a>
+            </div>
+        </div>
+    </nav>
+
+<!-- Navigation bottom-->
+      <nav class="navbar navbar-inverse navbar-fixed-bottom" role="navigation">
+          <div class="container">
+              <div class="navbar-header">
+                  <a class="navbar-brand" href="#">Home</a>
+                  <a class="navbar-brand" href="#portfolio">Listen</a>
+                  <a class="navbar-brand" href="#services">Record</a>
+              </div>
+           </div>
+      </nav>
+
+
+
+<!-- Header -->
+    <header id="top" class="header">
+        <div class="text-vertical-center">
+            <h1>Sound Walk</h1>
+            <br>
+            <a href="#page1" class="btn btn-dark btn-lg">record</a>
+            <a href="#portfolio" class="btn btn-dark btn-lg">Listen</a>
+        </div>
+    </header>
+
+<!-- Services -->
+<section id="services" class="services bg-primary">
+<div class="container">
+<div class="row text-center">
+<div class="col-lg-10 col-lg-offset-1">
+
+<!-- <hr class="small"> -->
+
+
+<div class="row">
+
+
+<div class="col-lg-4 col-sm-6 text-center">
+<div class="service-item">
+<span class="fa-stack fa-4x">
+<i class="fa fa-circle fa-stack-2x"></i>
+<a href="#" class="fa fa-play-circle-o  fa-stack-1x text-primary"></a>
+</span>
+<h4>
+<strong>Play</strong>
+</h4>
+</div>
+</div>
+
+<div class="col-lg-4 col-sm-6 text-center">
+<div class="service-item">
+<span class="fa-stack fa-4x">
+<i class="fa fa-circle fa-stack-2x"></i>
+<a id="record" class="fa fa-dot-circle-o fa-stack-1x text-primary"></a>
+</span>
+<h4><strong>Record</strong></h4>
+</div>
+</div>
+
+<!-- <div class="col-lg-4 col-sm-6 text-center">
+  <div class="service-item">
+<span class="fa-stack fa-4x">
+  <i class="fa fa-circle fa-stack-2x"></i>
+<a href="#" class="fa fa-square-o fa-stack-1x text-primary"></a>
+</span>
+<h4><strong>Stop</strong>  </h4>
+</div>
+</div> -->
+               </div>
+                    <!-- /.row (nested) -->
+                 </div>
+                <!-- /.col-lg-10 -->
+             </div>
+            <!-- /.row -->
+        </div>
+        <!-- /.container -->
+</section>
+
+
+<!-- Callout -->
+    <!-- <aside class="callout">
+        <div class="text-vertical-center">
+            <h1>Vertically Centered Text</h1>
+        </div>
+    </aside> -->
+
+
+
+<!-- Portfolio -->
+    <section id="portfolio" class="portfolio">
+        <div class="container">
+            <div class="row">
+                <div class="col-lg-10 col-lg-offset-1 text-center">
+                    <h2>Your Sound</h2>
+                    <hr class="small">
+                    <div class="row">
+
+<div class="col-md-6">
+<div class="portfolio-item">
+<a href="#contact">
+<img class="img-portfolio img-responsive" src="img/1.jpg">
+</a>
+</div>
+</div>
+
+<div class="col-md-6">
+<div class="portfolio-item">
+<a href="#contact">
+<img class="img-portfolio img-responsive" src="img/2.jpg">
+</a>
+</div>
+  </div>
+
+<div class="col-md-6">
+<div class="portfolio-item">
+<a href="#contact">
+<img class="img-portfolio img-responsive" src="img/3.jpg">
+</a>
+</div>
+</div>
+
+
+<div class="col-md-6">
+<div class="portfolio-item">
+<a href="#contact">
+<img class="img-portfolio img-responsive" src="img/4.jpg">
+</a>
+</div>
+</div>
+</div>
+
+<!-- /.row (nested) -->
+                    <a href="#" class="btn btn-dark">Load More</a>
+                </div>
+                <!-- /.col-lg-10 -->
+            </div>
+            <!-- /.row -->
+        </div>
+        <!-- /.container -->
+    </section>
+
+
+
+    <!-- Map -->
+<section id="contact" class="map">
+<iframe width='100%' height='60%' frameBorder='0' src='https://a.tiles.mapbox.com/v4/djung3.la92701n/attribution,zoompan,zoomwheel,geocoder,share.html?access_token=pk.eyJ1IjoiZGp1bmczIiwiYSI6IkZNZnNCUTgifQ.2V8xNzWMacjHnRILoZ9UXg'></iframe>
+<!-- <iframe width="100%" height="100%" frameborder="0" scrolling="no" marginheight="0" marginwidth="0" src="https://maps.google.com/maps?f=q&amp;source=s_q&amp;hl=en&amp;geocode=&amp;q=Twitter,+Inc.,+Market+Street,+San+Francisco,+CA&amp;aq=0&amp;oq=twitter&amp;sll=28.659344,-81.187888&amp;sspn=0.128789,0.264187&amp;ie=UTF8&amp;hq=Twitter,+Inc.,+Market+Street,+San+Francisco,+CA&amp;t=m&amp;z=15&amp;iwloc=A&amp;output=embed"></iframe>
+<br /> -->
+<!-- <small>
+<a href="https://maps.google.com/maps?f=q&amp;source=embed&amp;hl=en&amp;geocode=&amp;q=Twitter,+Inc.,+Market+Street,+San+Francisco,+CA&amp;aq=0&amp;oq=twitter&amp;sll=28.659344,-81.187888&amp;sspn=0.128789,0.264187&amp;ie=UTF8&amp;hq=Twitter,+Inc.,+Market+Street,+San+Francisco,+CA&amp;t=m&amp;z=15&amp;iwloc=A"></a>
+</small> -->
+<!-- </iframe> -->
+</section>
+
+
+
+
+<!-- jQuery -->
+<script src="js/jquery.js"></script>
+
+
+<!-- Bootstrap Core JavaScript -->
+<script src="js/bootstrap.min.js"></script>
+
+<script type="text/javascript" src="cordova.js"></script>
+<script type="text/javascript" ></script>
+
+</body>
+
+</html>
